@@ -57,10 +57,14 @@ def ensure_sqlite_schema():
                 if not _column_exists(connection, "documents", column_name):
                     connection.execute(text(f"ALTER TABLE documents ADD COLUMN {column_name} {column_type}"))
 
-            if _column_exists(connection, "documents", "url") and _column_exists(connection, "documents", "source_url"):
-                connection.execute(text("UPDATE documents SET url = source_url WHERE url IS NULL OR url = ''"))
-            if _column_exists(connection, "documents", "checksum") and _column_exists(connection, "documents", "document_hash"):
-                connection.execute(text("UPDATE documents SET checksum = document_hash WHERE checksum IS NULL OR checksum = ''"))
+            try:
+                if _column_exists(connection, "documents", "url") and _column_exists(connection, "documents", "source_url"):
+                    connection.execute(text("UPDATE documents SET url = source_url WHERE url IS NULL OR url = ''"))
+                if _column_exists(connection, "documents", "checksum") and _column_exists(connection, "documents", "document_hash"):
+                    connection.execute(text("UPDATE documents SET checksum = document_hash WHERE checksum IS NULL OR checksum = ''"))
+            except Exception as migrate_err:
+                logger.warning(f"Schema migration update note: {migrate_err}")
+
 
         if _table_exists(connection, "crawl_logs"):
             crawl_log_columns = {

@@ -188,13 +188,19 @@ def parse_links_from_html(html_text: str, base_url: str) -> List[Dict[str, str]]
         # Absolute URL resolution
         full_url = urljoin(base_url, href)
         
-        # Filter PDF or drive links
-        if full_url.lower().endswith(".pdf") or "uploads" in full_url.lower() or "drive.google.com" in full_url.lower():
+        # Filter PDF or document links, strictly excluding non-PDF media files
+        url_lower = full_url.lower()
+        non_pdf_extensions = (".mp4", ".mp3", ".avi", ".mov", ".mkv", ".png", ".jpg", ".jpeg", ".gif", ".zip", ".rar")
+        if any(url_lower.endswith(ext) for ext in non_pdf_extensions):
+            continue
+
+        if url_lower.endswith(".pdf") or ("uploads" in url_lower and not any(url_lower.endswith(ext) for ext in non_pdf_extensions)) or "drive.google.com" in url_lower:
             links.append({
                 "url": full_url,
                 "name": text or href.split("/")[-1],
                 "district": extract_district_from_link_text(text)
             })
+
             
     return links
 
@@ -221,3 +227,125 @@ def update_system_status(db: Session, key: str, value: str):
         item.value = value
         item.updated_at = datetime.utcnow()
     db.commit()
+
+
+def live_crawl_epic_search(db: Session, epic_normalized: str, source_url: str = None) -> List[Tuple[NoticeRecord, Document]]:
+    """
+    On-Demand Live Crawl and PDF Search for an EPIC Number:
+    1. Checks unindexed Documents / Crawl Queue in DB or fetches CEO Karnataka live pages.
+    2. Downloads & scans candidate PDFs on-the-fly for `epic_normalized`.
+    3. If matches found, extracts records, persists them to DB, and returns matching (NoticeRecord, Document) tuples.
+    """
+    target_url = source_url or settings.SOURCE_URL
+    logger.info(f"Triggering live PDF crawl search for EPIC '{epic_normalized}' from {target_url}...")
+    
+    found_matches: List[Tuple[NoticeRecord, Document]] = []
+    
+    # 1. First check unindexed or pending Documents already in DB
+    pending_docs = db.query(Document).filter(Document.processing_status != "INDEXED").limit(20).all()
+    
+    candidate_urls = []
+    for d in pending_docs:
+        candidate_urls.append({"url": d.source_url, "name": d.document_name, "district": d.district, "doc_obj": d})
+
+    # 2. Fetch live links from source URL if candidate list is small
+    if len(candidate_urls) < 5:
+        try:
+            with httpx.Client(timeout=settings.CRAWLER_TIMEOUT, follow_redirects=True, headers=HTTP_HEADERS) as client:
+                resp = client.get(target_url)
+                if resp.status_code == 200:
+                    links = parse_links_from_html(resp.text, base_url=target_url)
+                    for l in links:
+                        if not any(c["url"] == l["url"] for c in candidate_urls):
+                            candidate_urls.append({"url": l["url"], "name": l["name"], "district": l.get("district"), "doc_obj": None})
+        except Exception as err:
+            logger.warning(f"Live HTML fetch note during search: {err}")
+
+    # 3. Process candidates live
+    with httpx.Client(timeout=30, follow_redirects=True, headers=HTTP_HEADERS) as client:
+        for item in candidate_urls[:15]:
+            url = item["url"]
+            url_lower = url.lower()
+            if any(url_lower.endswith(ext) for ext in (".mp4", ".mp3", ".avi", ".mov", ".mkv", ".png", ".jpg", ".jpeg", ".gif", ".zip")):
+                continue
+            doc_name = item["name"]
+            doc_obj = item.get("doc_obj")
+
+
+            try:
+                pdf_resp = client.get(url)
+                if pdf_resp.status_code != 200:
+                    continue
+                pdf_bytes = pdf_resp.content
+
+                import fitz
+                try:
+                    pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    epic_in_pdf = False
+                    for page in pdf_doc:
+                        if epic_normalized.lower() in page.get_text("text").lower():
+                            epic_in_pdf = True
+                            break
+                    pdf_doc.close()
+                except Exception:
+                    epic_in_pdf = True
+
+                if not epic_in_pdf:
+                    continue
+
+                file_hash = hashlib.sha256(pdf_bytes).hexdigest()
+                if not doc_obj:
+                    doc_obj = db.query(Document).filter(Document.source_url == url).first()
+                
+                if not doc_obj:
+                    doc_obj = Document(
+                        source_url=url,
+                        document_name=doc_name,
+                        document_hash=file_hash,
+                        download_status="DOWNLOADED",
+                        processing_status="PROCESSING",
+                        discovered_at=datetime.utcnow()
+                    )
+                    db.add(doc_obj)
+                    db.commit()
+                    db.refresh(doc_obj)
+
+                extracted_records, total_pages, ocr_used = process_pdf_bytes(pdf_bytes, document_name=doc_name)
+                doc_obj.page_count = total_pages
+                doc_obj.ocr_used = ocr_used
+
+                db.query(NoticeRecord).filter(NoticeRecord.document_id == doc_obj.id).delete()
+
+                for rec in extracted_records:
+                    notice_rec = NoticeRecord(
+                        document_id=doc_obj.id,
+                        page_number=rec["page_number"],
+                        epic_normalized=rec["epic_normalized"],
+                        epic_raw=rec["epic_raw"],
+                        epic_match_confidence=rec["epic_match_confidence"],
+                        name=rec.get("name"),
+                        district=rec.get("district") or item.get("district"),
+                        constituency=rec.get("constituency"),
+                        part_number=rec.get("part_number"),
+                        serial_number=rec.get("serial_number"),
+                        notice_reason=rec.get("notice_reason"),
+                        extracted_text=rec.get("extracted_text")
+                    )
+                    db.add(notice_rec)
+                    if rec["epic_normalized"] == epic_normalized:
+                        found_matches.append((notice_rec, doc_obj))
+
+                doc_obj.processing_status = "INDEXED"
+                doc_obj.indexed_at = datetime.utcnow()
+                db.commit()
+
+                if found_matches:
+                    logger.info(f"Live PDF scan discovered {len(found_matches)} match(es) for EPIC '{epic_normalized}'!")
+                    break
+
+            except Exception as scan_err:
+                logger.error(f"Error live scanning PDF {url}: {scan_err}")
+                continue
+
+    return found_matches
+

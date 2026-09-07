@@ -33,6 +33,8 @@ from .tasks.pdf_tasks import (
     process_next_pdf_items,
     process_pdf,
 )
+from .crawler.crawler import live_crawl_epic_search
+
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -416,7 +418,12 @@ def check_epic(payload: EpicCheckRequest, db: Session = Depends(get_db)):
         .all()
     )
 
+    if not matches:
+        logger.info(f"No indexed DB record found for '{normalized}'. Triggering live PDF crawl...")
+        matches = live_crawl_epic_search(db, epic_normalized=normalized)
+
     total_docs_indexed = db.query(Document).filter(Document.processing_status == "INDEXED").count()
+
     total_docs_discovered = db.query(Document).count()
     last_crawl_item = db.query(SystemStatus).filter(SystemStatus.key == "LAST_SUCCESSFUL_CRAWL").first()
     last_updated = last_crawl_item.value if last_crawl_item else datetime.utcnow().isoformat()

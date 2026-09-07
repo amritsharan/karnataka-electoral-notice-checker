@@ -308,6 +308,7 @@ def upsert_crawl_queue(
     district: Optional[str] = None,
     subdistrict: Optional[str] = None,
     priority: int = 0,
+    reset_status: bool = True,
 ) -> Tuple[CrawlQueue, bool]:
     existing = db.query(CrawlQueue).filter(CrawlQueue.url == url).first()
     if existing:
@@ -315,7 +316,11 @@ def upsert_crawl_queue(
         existing.district = district or existing.district
         existing.subdistrict = subdistrict or existing.subdistrict
         existing.url_type = url_type or existing.url_type
+        if reset_status:
+            existing.status = "PENDING"
+            existing.next_attempt = datetime.utcnow()
         return existing, False
+
 
     item = CrawlQueue(
         url=url,
@@ -642,34 +647,43 @@ def get_recent_crawl_events(db: Session, limit: int = 10) -> List[Dict[str, Any]
 
 
 def get_district_progress(db: Session) -> List[Dict[str, Any]]:
-    rows = db.query(Document.district, Document.processing_status).all()
+    from sqlalchemy import func
+    rows = db.query(
+        func.coalesce(Document.district, "Unassigned"),
+        Document.processing_status,
+        func.count(Document.id)
+    ).group_by(Document.district, Document.processing_status).all()
+
     progress: Dict[str, Dict[str, Any]] = {}
-    for district, processing_status in rows:
-        district_name = district or "Unassigned"
+    for district_name, processing_status, cnt in rows:
         bucket = progress.setdefault(
             district_name,
             {"district": district_name, "pdfs": 0, "processed": 0, "pending": 0, "failed": 0},
         )
-        bucket["pdfs"] += 1
+        bucket["pdfs"] += cnt
         if processing_status == "INDEXED":
-            bucket["processed"] += 1
+            bucket["processed"] += cnt
         elif processing_status == "FAILED":
-            bucket["failed"] += 1
+            bucket["failed"] += cnt
         else:
-            bucket["pending"] += 1
+            bucket["pending"] += cnt
     return sorted(progress.values(), key=lambda item: item["district"])
 
 
 def get_subdistrict_progress(db: Session, district_name: Optional[str] = None) -> List[Dict[str, Any]]:
-    query = db.query(Document.district, Document.subdistrict, Document.processing_status)
+    from sqlalchemy import func
+    query = db.query(
+        func.coalesce(Document.district, "Unassigned"),
+        func.coalesce(Document.subdistrict, "Unassigned"),
+        Document.processing_status,
+        func.count(Document.id)
+    )
     if district_name:
         query = query.filter(Document.district == district_name)
 
-    rows = query.all()
+    rows = query.group_by(Document.district, Document.subdistrict, Document.processing_status).all()
     progress: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for district, subdistrict, processing_status in rows:
-        district_bucket = district or "Unassigned"
-        subdistrict_bucket = subdistrict or "Unassigned"
+    for district_bucket, subdistrict_bucket, processing_status, cnt in rows:
         key = (district_bucket, subdistrict_bucket)
         bucket = progress.setdefault(
             key,
@@ -682,11 +696,11 @@ def get_subdistrict_progress(db: Session, district_name: Optional[str] = None) -
                 "failed": 0,
             },
         )
-        bucket["pdfs"] += 1
+        bucket["pdfs"] += cnt
         if processing_status == "INDEXED":
-            bucket["processed"] += 1
+            bucket["processed"] += cnt
         elif processing_status == "FAILED":
-            bucket["failed"] += 1
+            bucket["failed"] += cnt
         else:
-            bucket["pending"] += 1
-    return sorted(progress.values(), key=lambda item: (item["district"], item["subdistrict"]))
+            bucket["pending"] += cnt
+    return sorted(progress.values(), key=lambda item: (item["district"], item["subdistrict"]))
