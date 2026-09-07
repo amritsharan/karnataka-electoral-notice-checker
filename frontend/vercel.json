@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://whenever-overhear-reconfirm.ngrok-free.dev/api/:path*"
+    }
+  ]
+}

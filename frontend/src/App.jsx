@@ -16,9 +16,13 @@ export default function App() {
   const fetchStatus = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/status`, {
-        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
       });
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         setStatusData(data);
       }
@@ -47,10 +51,16 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true'
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify(payload),
       });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error("Unable to connect to the search server. Please check backend status.");
+      }
 
       if (!res.ok) {
         const errData = await res.json();
