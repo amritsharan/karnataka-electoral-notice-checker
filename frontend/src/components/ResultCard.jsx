@@ -16,38 +16,20 @@ export default function ResultCard({ searchResult, searchedEpic }) {
   } = searchResult;
 
   if (!found) {
-    const notFoundMessage = indexing_in_progress
-      ? `This record was not found in the documents processed so far. Indexing is still in progress (${total_documents_indexed} / ${total_documents_discovered || 'many'} PDFs processed), so the complete repository has not yet been checked.`
-      : 'No match found in the complete indexed dataset.';
-
     return (
       <div className="result-card not-found">
-        {warning && (
-          <div className="name-warning-banner" style={{ marginBottom: 16 }}>
-            <ShieldAlert size={18} className="warning-icon" />
-            <span>{warning}</span>
-          </div>
-        )}
-
         <div className="result-header">
-          <CheckCircle2 size={28} className="text-green-600" />
-          <h2 className="result-title">
-            {indexing_complete ? '✅ No Match Found in Complete Dataset' : 'ℹ️ No Match in Documents Processed So Far'}
+          <CheckCircle2 size={28} style={{ color: '#16a34a' }} />
+          <h2 className="result-title" style={{ color: '#15803d' }}>
+            ✅ No Notice Issued
           </h2>
         </div>
 
         <p className="result-explanation-text">
-          {notFoundMessage} (Searched: <strong>{searchedEpic}</strong>)
+          No notice record was found in published documents for EPIC number: <strong>{searchedEpic}</strong>.
         </p>
 
-        <div className="source-box" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', marginBottom: 20 }}>
-          <div className="source-meta">
-            <div>PDFs indexed so far: <strong>{total_documents_indexed}</strong></div>
-            <div>Total PDFs discovered: <strong>{total_documents_discovered || total_documents_indexed}</strong></div>
-            <div>Indexing state: <strong>{indexing_in_progress ? 'Indexing in progress...' : 'Complete'}</strong></div>
-            <div>Last updated: <strong>{last_updated ? new Date(last_updated).toLocaleString() : 'Recently'}</strong></div>
-          </div>
-
+        <div className="source-box" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', marginTop: 20 }}>
           <a 
             href="https://ceo.karnataka.gov.in/notices_issued.html" 
             target="_blank" 
