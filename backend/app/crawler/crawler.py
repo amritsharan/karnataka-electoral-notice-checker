@@ -248,10 +248,14 @@ def live_crawl_epic_search(db: Session, epic_normalized: str, source_url: str = 
     for d in pending_docs:
         candidate_urls.append({"url": d.source_url, "name": d.document_name, "district": d.district, "doc_obj": d})
 
+    import time
+    start_time = time.time()
+    MAX_SEARCH_TIME = 4.0  # seconds
+
     # 2. Fetch live links from source URL if candidate list is small
-    if len(candidate_urls) < 5:
+    if len(candidate_urls) < 5 and (time.time() - start_time) < MAX_SEARCH_TIME:
         try:
-            with httpx.Client(timeout=settings.CRAWLER_TIMEOUT, follow_redirects=True, headers=HTTP_HEADERS) as client:
+            with httpx.Client(timeout=2.0, follow_redirects=True, headers=HTTP_HEADERS) as client:
                 resp = client.get(target_url)
                 if resp.status_code == 200:
                     links = parse_links_from_html(resp.text, base_url=target_url)
@@ -262,8 +266,11 @@ def live_crawl_epic_search(db: Session, epic_normalized: str, source_url: str = 
             logger.warning(f"Live HTML fetch note during search: {err}")
 
     # 3. Process candidates live
-    with httpx.Client(timeout=30, follow_redirects=True, headers=HTTP_HEADERS) as client:
-        for item in candidate_urls[:15]:
+    with httpx.Client(timeout=3.0, follow_redirects=True, headers=HTTP_HEADERS) as client:
+        for item in candidate_urls[:5]:
+            if (time.time() - start_time) > MAX_SEARCH_TIME:
+                logger.info(f"Live crawl search time limit reached ({MAX_SEARCH_TIME}s). Returning current results.")
+                break
             url = item["url"]
             url_lower = url.lower()
             if any(url_lower.endswith(ext) for ext in (".mp4", ".mp3", ".avi", ".mov", ".mkv", ".png", ".jpg", ".jpeg", ".gif", ".zip")):

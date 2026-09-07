@@ -420,7 +420,11 @@ def check_epic(payload: EpicCheckRequest, db: Session = Depends(get_db)):
 
     if not matches:
         logger.info(f"No indexed DB record found for '{normalized}'. Triggering live PDF crawl...")
-        matches = live_crawl_epic_search(db, epic_normalized=normalized)
+        try:
+            matches = live_crawl_epic_search(db, epic_normalized=normalized)
+        except Exception as crawl_err:
+            logger.error(f"Live crawl error during search: {crawl_err}")
+            matches = []
 
     total_docs_indexed = db.query(Document).filter(Document.processing_status == "INDEXED").count()
 
