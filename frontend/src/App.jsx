@@ -11,9 +11,13 @@ export default function App() {
   const [statusData, setStatusData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   const fetchStatus = async () => {
     try {
-      const res = await fetch('/api/status');
+      const res = await fetch(`${API_BASE}/api/status`, {
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
       if (res.ok) {
         const data = await res.json();
         setStatusData(data);
@@ -35,7 +39,7 @@ export default function App() {
     setSearchedQuery(queryInput);
     setSearchResult(null);
 
-    const endpoint = mode === 'epic' ? '/api/check-epic' : '/api/check-name';
+    const endpoint = mode === 'epic' ? `${API_BASE}/api/check-epic` : `${API_BASE}/api/check-name`;
     const payload = mode === 'epic' ? { epic: queryInput } : { name: queryInput };
 
     try {
@@ -43,6 +47,7 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
         },
         body: JSON.stringify(payload),
       });
