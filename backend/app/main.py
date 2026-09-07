@@ -288,23 +288,25 @@ def parse_record_details(record, doc):
     doc_name = (doc.document_name if doc else "") or ""
     doc_name_lower = doc_name.lower()
 
-    if parsed_reason_from_text and parsed_reason_from_text.lower() not in ["listed", "n/a", "none"]:
+    if record.notice_reason and record.notice_reason not in ["Listed under CEO Karnataka Notice Document", "Listed in CEO Karnataka notice document", "N/A", "Listed"]:
+        reason = record.notice_reason
+    elif parsed_reason_from_text and parsed_reason_from_text.lower() not in ["listed", "n/a", "none"]:
         reason = parsed_reason_from_text
-    elif not reason or "listed" in reason.lower() or reason == "N/A":
+    else:
         if "form_39" in doc_name_lower or "form 39" in doc_name_lower:
-            reason = "Form 39 - Discrepancy Elector Report (SIR-2026)"
+            reason = "Discrepancy and No Mapping Notice (Form 39)"
         elif "form_60" in doc_name_lower or "form 60" in doc_name_lower:
-            reason = "Form 60 - Discrepancy Elector Report (SIR-2026)"
+            reason = "Discrepancy and No Mapping Notice (Form 60)"
         elif "form_154" in doc_name_lower or "form 154" in doc_name_lower:
-            reason = "Form 154 - Discrepancy Elector Report (SIR-2026)"
+            reason = "Discrepancy and No Mapping Notice (Form 154)"
         elif "form_6" in doc_name_lower or "form 6" in doc_name_lower:
-            reason = "Form 6 - Inclusion & Duplicate Verification Notice"
+            reason = "Inclusion & Duplicate Verification Notice (Form 6)"
         elif "form_7" in doc_name_lower or "form 7" in doc_name_lower:
-            reason = "Form 7 - Deletion & Objection Notice"
+            reason = "Deletion & Objection Notice (Form 7)"
         elif "form_8" in doc_name_lower or "form 8" in doc_name_lower:
-            reason = "Form 8 - Correction & Shifting Notice"
+            reason = "Correction & Shifting Notice (Form 8)"
         elif "no mapping" in doc_name_lower or "nomapping" in doc_name_lower or "unmapped" in doc_name_lower:
-            reason = "Polling Station Unmapped / Mapping Discrepancy"
+            reason = "Unmapped with Last SIR / PS Mapping Discrepancy Notice"
         elif "logical" in doc_name_lower or "error" in doc_name_lower:
             reason = "Logical Error in Roll Data Verification"
         elif "dse" in doc_name_lower or "demographic" in doc_name_lower:
@@ -314,11 +316,7 @@ def parse_record_details(record, doc):
         elif "uncollected" in doc_name_lower or "undelivered" in doc_name_lower:
             reason = "Uncollected EPIC Card / Undelivered Notice"
         elif "discrepency" in doc_name_lower or "discrepancy" in doc_name_lower:
-            ac_m = re.search(r'ac(\d{1,3})', doc_name_lower)
-            if ac_m:
-                reason = f"Discrepancy Elector Report (AC {ac_m.group(1)})"
-            else:
-                reason = "Elector Data Discrepancy List (SIR-2026)"
+            reason = "Discrepancy and No Mapping Notice (SIR-2026)"
         else:
             reason = "Special Intensive Revision (SIR-2026) Notice Verification"
 
