@@ -234,9 +234,10 @@ def parse_record_details(record, doc):
 
     # Parse extracted_text for Name, Relative Name, Age, Gender, Serial Number, Reason
     text = record.extracted_text
+    parsed_reason_from_text = None
     if text:
         parts = [p.strip() for p in text.split("|") if p.strip()]
-        if "Name:" in text or "S.No:" in text or "EPIC:" in text:
+        if "Name:" in text or "S.No:" in text or "EPIC:" in text or "Reason:" in text:
             for p in parts:
                 if ":" in p:
                     k, v = p.split(":", 1)
@@ -254,8 +255,8 @@ def parse_record_details(record, doc):
                         if not serial_number or serial_number == "N/A": serial_number = v
                     elif "part" in k:
                         if not part_number or part_number == "N/A": part_number = v
-                    elif "reason" in k:
-                        if not reason or "Listed" in reason: reason = v
+                    elif "reason" in k or "category" in k or "remarks" in k:
+                        if v and len(v) > 2: parsed_reason_from_text = v
         else:
             # Piped format: "1 | 6 | ZLW5716501 | SHAKILA BANU | ZEENATH (Mother)"
             epic_idx = -1
@@ -282,6 +283,44 @@ def parse_record_details(record, doc):
                         relative_name = cand_rel
                 if epic_idx + 3 < len(parts) and parts[epic_idx + 3].isdigit() and not age:
                     age = parts[epic_idx + 3]
+
+    # Refine reason if generic or missing
+    doc_name = (doc.document_name if doc else "") or ""
+    doc_name_lower = doc_name.lower()
+
+    if parsed_reason_from_text and parsed_reason_from_text.lower() not in ["listed", "n/a", "none"]:
+        reason = parsed_reason_from_text
+    elif not reason or "listed" in reason.lower() or reason == "N/A":
+        if "form_39" in doc_name_lower or "form 39" in doc_name_lower:
+            reason = "Form 39 - Discrepancy Elector Report (SIR-2026)"
+        elif "form_60" in doc_name_lower or "form 60" in doc_name_lower:
+            reason = "Form 60 - Discrepancy Elector Report (SIR-2026)"
+        elif "form_154" in doc_name_lower or "form 154" in doc_name_lower:
+            reason = "Form 154 - Discrepancy Elector Report (SIR-2026)"
+        elif "form_6" in doc_name_lower or "form 6" in doc_name_lower:
+            reason = "Form 6 - Inclusion & Duplicate Verification Notice"
+        elif "form_7" in doc_name_lower or "form 7" in doc_name_lower:
+            reason = "Form 7 - Deletion & Objection Notice"
+        elif "form_8" in doc_name_lower or "form 8" in doc_name_lower:
+            reason = "Form 8 - Correction & Shifting Notice"
+        elif "no mapping" in doc_name_lower or "nomapping" in doc_name_lower or "unmapped" in doc_name_lower:
+            reason = "Polling Station Unmapped / Mapping Discrepancy"
+        elif "logical" in doc_name_lower or "error" in doc_name_lower:
+            reason = "Logical Error in Roll Data Verification"
+        elif "dse" in doc_name_lower or "demographic" in doc_name_lower:
+            reason = "Demographic Similar Entry (DSE) Verification"
+        elif "shifted" in doc_name_lower or "absent" in doc_name_lower:
+            reason = "Shifted Residence / Absent Elector Verification"
+        elif "uncollected" in doc_name_lower or "undelivered" in doc_name_lower:
+            reason = "Uncollected EPIC Card / Undelivered Notice"
+        elif "discrepency" in doc_name_lower or "discrepancy" in doc_name_lower:
+            ac_m = re.search(r'ac(\d{1,3})', doc_name_lower)
+            if ac_m:
+                reason = f"Discrepancy Elector Report (AC {ac_m.group(1)})"
+            else:
+                reason = "Elector Data Discrepancy List (SIR-2026)"
+        else:
+            reason = "Special Intensive Revision (SIR-2026) Notice Verification"
 
     return {
         "name": name or "Elector",
