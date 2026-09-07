@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: epic_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: epic_postgres
+    environment:
+      POSTGRES_USER: epicuser
+      POSTGRES_PASSWORD: epicpassword
+      POSTGRES_DB: epic_notice_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U epicuser -d epic_notice_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: epic_backend
+    environment:
+      - SOURCE_URL=https://ceo.karnataka.gov.in/notices_issued.html
+      - DATABASE_URL=postgresql://epicuser:epicpassword@postgres:5432/epic_notice_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND_URL=redis://redis:6379/1
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
+      - OCR_ENABLED=true
+      - DISCOVERY_BATCH_SIZE=10
+      - PDF_BATCH_SIZE=10
+      - DISCOVERY_WORKERS=2
+      - PDF_WORKERS=4
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: epic_celery_worker
+    command: python -m celery -A backend.app.celery_app worker --loglevel=info --pool=solo --concurrency=1
+    environment:
+      - DATABASE_URL=postgresql://epicuser:epicpassword@postgres:5432/epic_notice_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND_URL=redis://redis:6379/1
+      - OCR_ENABLED=true
+      - DISCOVERY_BATCH_SIZE=10
+      - PDF_BATCH_SIZE=10
+      - DISCOVERY_WORKERS=2
+      - PDF_WORKERS=4
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: epic_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  redis_data:
+  postgres_data:

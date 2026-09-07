@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies including Tesseract OCR, MuPDF, and Redis client
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-kan \
+    libtesseract-dev \
+    libmupdf-dev \
+    gcc \
+    curl \
+    redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Tesseract data path
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr-4.00/tessdata
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend /app/backend
+
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+# Default to running the API; use entrypoint override for worker
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

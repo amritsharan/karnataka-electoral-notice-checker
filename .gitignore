@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Node / React
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.npm
+*.log
+
+# Environment & Temp Files
+.env
+.env.local
+.vscode/
+.idea/
+.DS_Store
+scratch/
+*.pdf
+*.zip
+*.rar
+*.png
+*.jpg
+*.jpeg
+*.webp
