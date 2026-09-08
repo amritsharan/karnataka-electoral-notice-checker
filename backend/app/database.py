@@ -10,15 +10,23 @@ logger = logging.getLogger(__name__)
 DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
 
 if settings.DATABASE_URL.startswith("sqlite"):
-    import os
+    import os, httpx
     db_path = settings._db_path
     if not os.path.exists(db_path) or os.path.getsize(db_path) < 100000000:
         logger.info(f"Database file at {db_path} missing or incomplete. Auto-downloading full 4.42M record database from Google Drive...")
         try:
-            import gdown
-            url = f"https://drive.google.com/uc?id={DB_DRIVE_ID}&confirm=t"
-            gdown.download(url, output=db_path, quiet=False)
-            logger.info("Successfully downloaded pre-indexed database!")
+            direct_url = f"https://drive.usercontent.google.com/download?id={DB_DRIVE_ID}&export=download&confirm=t"
+            tmp_db_path = db_path + ".tmp"
+            with httpx.stream("GET", direct_url, follow_redirects=True, timeout=300.0) as resp:
+                resp.raise_for_status()
+                with open(tmp_db_path, "wb") as f:
+                    for chunk in resp.iter_bytes(chunk_size=1024 * 1024 * 5):
+                        f.write(chunk)
+            if os.path.exists(tmp_db_path) and os.path.getsize(tmp_db_path) > 100000000:
+                if os.path.exists(db_path):
+                    os.remove(db_path)
+                os.rename(tmp_db_path, db_path)
+                logger.info("Successfully downloaded full pre-indexed 4.42M record database!")
         except Exception as err:
             logger.error(f"Failed to auto-download database from Google Drive: {err}")
 
