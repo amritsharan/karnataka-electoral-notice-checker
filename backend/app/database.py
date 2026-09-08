@@ -7,7 +7,7 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
+DB_DRIVE_ID = "1rqiso8zvb7urBbUpg-QanMsg6FKwP-tI"
 
 if settings.DATABASE_URL.startswith("sqlite"):
     import os, httpx

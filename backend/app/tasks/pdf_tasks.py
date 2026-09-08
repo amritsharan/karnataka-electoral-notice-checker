@@ -93,22 +93,36 @@ def process_pdf(self, pdf_queue_id: int) -> dict:
                 else:
                     raise FileNotFoundError(f"Local PDF file not found: {local_path}")
             elif "drive.google.com" in document.url:
-                import re, gdown, tempfile
+                import re, tempfile
                 fid = None
                 match = re.search(r'(?:id=|/d/)([a-zA-Z0-9_-]{20,60})', document.url)
                 if match:
                     fid = match.group(1)
                 
                 if fid:
-                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                        tmp_path = tmp.name
                     try:
-                        gdown.download(id=fid, output=tmp_path, quiet=True)
-                        with open(tmp_path, "rb") as f:
-                            pdf_content = f.read()
-                    finally:
-                        if os.path.exists(tmp_path):
-                            os.remove(tmp_path)
+                        drive_url = f"https://drive.google.com/uc?export=download&id={fid}"
+                        with httpx.Client(timeout=20.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                            resp = client.get(drive_url)
+                            if resp.status_code == 200 and len(resp.content) > 1000 and resp.content[:4] == b'%PDF':
+                                pdf_content = resp.content
+                    except Exception as drive_err:
+                        logger.warning(f"Direct Google Drive download attempt failed: {drive_err}")
+
+                    if pdf_content is None:
+                        try:
+                            import gdown
+                            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                                tmp_path = tmp.name
+                            try:
+                                gdown.download(id=fid, output=tmp_path, quiet=True)
+                                with open(tmp_path, "rb") as f:
+                                    pdf_content = f.read()
+                            finally:
+                                if os.path.exists(tmp_path):
+                                    os.remove(tmp_path)
+                        except Exception as gdown_err:
+                            logger.warning(f"gdown fallback failed for {fid}: {gdown_err}")
             
             if pdf_content is None:
                 with httpx.Client(timeout=settings.CRAWLER_TIMEOUT, follow_redirects=True) as client:

@@ -40,7 +40,7 @@ from .crawler.crawler import live_crawl_epic_search
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
+DB_DRIVE_ID = "1rqiso8zvb7urBbUpg-QanMsg6FKwP-tI"
 
 def ensure_database_file():
     import os
@@ -227,14 +227,17 @@ def parse_record_details(record, doc):
 
     # Fix generic constituency if it's set to filename or missing
     if not constituency or constituency == "N/A" or constituency.endswith(".pdf"):
+        if doc and doc.subdistrict and doc.subdistrict != "Hassan" and not doc.subdistrict.endswith(".pdf"):
+            constituency = doc.subdistrict
         if doc and doc.document_name:
-            s10_m = re.search(r'S10[_\-](\d{1,3})[_\-](\d{1,4})', doc.document_name, re.IGNORECASE)
-            if s10_m:
-                constituency = f"AC {s10_m.group(1)}"
-                part_number = s10_m.group(2)
+            ac_m = re.search(r'ac[_\-]?(\d{1,3})', doc.document_name, re.IGNORECASE)
+            part_m = re.search(r'part[_\-]?(\d{1,4})', doc.document_name, re.IGNORECASE)
+            if ac_m and (not constituency or constituency == "N/A"):
+                constituency = f"AC {ac_m.group(1)}"
+            if part_m and (not part_number or part_number == "N/A"):
+                part_number = part_m.group(1)
             elif "ac176" in doc.document_name.lower():
                 constituency = "176 Bengaluru South"
-                part_m = re.search(r'part(\d+)', doc.document_name, re.IGNORECASE)
                 if part_m: part_number = part_m.group(1)
                 district = "Bengaluru Urban"
 
