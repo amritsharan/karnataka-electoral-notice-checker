@@ -2,7 +2,25 @@ from sqlalchemy import create_engine
 from sqlalchemy import text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import logging
 from .config import settings
+
+logger = logging.getLogger(__name__)
+
+DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
+
+if settings.DATABASE_URL.startswith("sqlite"):
+    import os
+    db_path = settings._db_path
+    if not os.path.exists(db_path) or os.path.getsize(db_path) < 100000000:
+        logger.info(f"Database file at {db_path} missing or incomplete. Auto-downloading full 4.42M record database from Google Drive...")
+        try:
+            import gdown
+            url = f"https://drive.google.com/uc?id={DB_DRIVE_ID}&confirm=t"
+            gdown.download(url, output=db_path, quiet=False)
+            logger.info("Successfully downloaded pre-indexed database!")
+        except Exception as err:
+            logger.error(f"Failed to auto-download database from Google Drive: {err}")
 
 # Handle SQLite vs PostgreSQL configuration
 connect_args = {}
