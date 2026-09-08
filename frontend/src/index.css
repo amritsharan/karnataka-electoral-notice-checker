@@ -55,10 +55,11 @@ body {
 
 /* Header Styles */
 .site-header {
-  background: #ffffff;
-  border-bottom: 1px solid var(--card-border);
-  padding: 24px 0;
-  box-shadow: var(--shadow-sm);
+  background: #1b365d;
+  border-bottom: 1px solid #132847;
+  padding: 22px 0;
+  box-shadow: var(--shadow-md);
+  color: #ffffff;
 }
 
 .header-inner {
@@ -72,65 +73,76 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-icon {
-  width: 44px;
-  height: 44px;
-  background: var(--primary);
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 20px;
+  backdrop-filter: blur(4px);
 }
 
 .brand-title {
   font-size: 22px;
   font-weight: 700;
-  color: var(--primary);
+  color: #ffffff;
   letter-spacing: -0.02em;
 }
 
 .brand-subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
+  font-size: 13.5px;
+  color: #cbd5e1;
   margin-top: 2px;
 }
 
-.header-nav {
+/* Language Toggle Pill Switch */
+.lang-toggle-container {
   display: flex;
-  gap: 10px;
+  align-items: center;
 }
 
-.nav-btn {
+.lang-toggle {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 4px;
+  border-radius: 24px;
+  display: flex;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.lang-btn {
   background: transparent;
-  border: 1px solid #cbd5e1;
-  color: var(--text-muted);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
+  border: none;
+  color: #ffffff;
+  padding: 6px 18px;
+  border-radius: 18px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  outline: none;
 }
 
-.nav-btn:hover {
-  background: #f8fafc;
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-.nav-btn.active {
-  background: var(--primary);
+.lang-btn:hover {
   color: #ffffff;
-  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lang-btn.active {
+  background: #ffffff;
+  color: #1b365d;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Main Content Area */

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Search, Loader2, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function SearchCard({ onSearch, isLoading }) {
+  const { t } = useLanguage();
   const [queryInput, setQueryInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -15,12 +17,12 @@ export default function SearchCard({ onSearch, isLoading }) {
     const cleanQuery = queryInput.trim();
 
     if (!cleanQuery) {
-      setErrorMsg('Please enter an EPIC number.');
+      setErrorMsg(t('errEmptyEpic'));
       return;
     }
 
     if (cleanQuery.length < 5) {
-      setErrorMsg('Please enter a valid EPIC number (e.g. ABC1234567).');
+      setErrorMsg(t('errInvalidEpic'));
       return;
     }
 
@@ -32,11 +34,11 @@ export default function SearchCard({ onSearch, isLoading }) {
     <div className="search-card">
       <h2 className="search-title">
         <Search size={22} className="text-primary" />
-        Check Your EPIC Number
+        {t('searchTitle')}
       </h2>
       
       <p className="search-description">
-        Enter your Voter ID / EPIC number for instant verification against published notice records.
+        {t('searchDescription')}
       </p>
 
       <form onSubmit={handleSubmit} className="search-form">
@@ -44,11 +46,11 @@ export default function SearchCard({ onSearch, isLoading }) {
           <input
             type="text"
             className="epic-input"
-            placeholder="e.g. ABC1234567"
+            placeholder={t('epicPlaceholder')}
             value={queryInput}
             onChange={handleInputChange}
             maxLength={15}
-            aria-label="Enter EPIC Number"
+            aria-label={t('ariaEpicInput')}
             disabled={isLoading}
             autoFocus
           />
@@ -60,10 +62,10 @@ export default function SearchCard({ onSearch, isLoading }) {
             {isLoading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Checking...
+                {t('btnChecking')}
               </>
             ) : (
-              'CHECK STATUS'
+              t('btnCheckStatus')
             )}
           </button>
         </div>
@@ -78,5 +80,3 @@ export default function SearchCard({ onSearch, isLoading }) {
     </div>
   );
 }
-
-

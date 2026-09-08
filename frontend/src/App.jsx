@@ -3,8 +3,10 @@ import Header from './components/Header';
 import SearchCard from './components/SearchCard';
 import ResultCard from './components/ResultCard';
 import Footer from './components/Footer';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 
-export default function App() {
+function MainAppContent() {
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [searchedQuery, setSearchedQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
@@ -59,12 +61,12 @@ export default function App() {
 
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        throw new Error("Unable to connect to the search server. Please check backend status.");
+        throw new Error(t('networkErrorMsg'));
       }
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || "We couldn't complete the search. Please try again.");
+        throw new Error(errData.detail || t('genericErrorMsg'));
       }
 
       const data = await res.json();
@@ -72,7 +74,7 @@ export default function App() {
       fetchStatus();
     } catch (err) {
       console.error('Search error:', err);
-      setErrorMessage(err.message || "We couldn't complete the search. Please try again.");
+      setErrorMessage(err.message || t('genericErrorMsg'));
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +86,10 @@ export default function App() {
 
       {statusData?.indexing_in_progress && (statusData?.documents_processed < statusData?.documents_discovered) && (
         <div className="status-banner">
-          Indexing in progress ({statusData.documents_processed || 0} / {statusData.documents_discovered || 'many'} PDFs processed). Records already processed are searchable.
+          {t('indexingInProgress', {
+            processed: statusData.documents_processed || 0,
+            discovered: statusData.documents_discovered || 'many'
+          })}
         </div>
       )}
 
@@ -94,7 +99,7 @@ export default function App() {
 
           {errorMessage && (
             <div className="result-card" style={{ borderLeft: '4px solid #dc2626', background: '#fef2f2', color: '#991b1b', marginBottom: 32 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>We couldn't complete the search.</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{t('searchErrorTitle')}</h3>
               <p style={{ fontSize: 14 }}>{errorMessage}</p>
             </div>
           )}
@@ -110,4 +115,10 @@ export default function App() {
   );
 }
 
-
+export default function App() {
+  return (
+    <LanguageProvider>
+      <MainAppContent />
+    </LanguageProvider>
+  );
+}
