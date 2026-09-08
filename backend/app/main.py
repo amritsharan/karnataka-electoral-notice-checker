@@ -40,6 +40,22 @@ from .crawler.crawler import live_crawl_epic_search
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
+
+def ensure_database_file():
+    import os
+    import gdown
+    db_path = settings._db_path
+    if not os.path.exists(db_path) or os.path.getsize(db_path) < 10000000:
+        logger.info(f"Database missing or empty at {db_path}. Auto-downloading full 4.42M record database from Google Drive...")
+        try:
+            gdown.download(id=DB_DRIVE_ID, output=db_path, quiet=False)
+            logger.info("Successfully downloaded pre-indexed database from Google Drive!")
+        except Exception as err:
+            logger.error(f"Failed to auto-download database from Google Drive: {err}")
+
+ensure_database_file()
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -156,13 +172,15 @@ def build_status_payload(db: Session) -> SystemStatusResponse:
         pending_docs > 0
         or crawl_queue_pending > 0
         or pdf_queue_pending > 0
+        or pdf_queue_processing > 0
         or active_crawl is not None
     )
-    if total_docs > 0 and indexed_docs >= total_docs and pending_docs == 0:
-        indexing_in_progress = False
+
+    if pdf_queue_pending > 0 or pdf_queue_processing > 0:
+        indexing_in_progress = True
 
     indexing_complete = bool(
-        total_docs > 0 and indexed_docs >= total_docs and pending_docs == 0 and not indexing_in_progress
+        pdf_queue_pending == 0 and pdf_queue_processing == 0 and crawl_queue_pending == 0 and not indexing_in_progress
     )
 
 
@@ -173,9 +191,9 @@ def build_status_payload(db: Session) -> SystemStatusResponse:
         last_updated=last_success.value if last_success else datetime.utcnow().isoformat(),
         last_crawl=last_crawl.value if last_crawl else None,
         last_successful_crawl=last_success.value if last_success else None,
-        documents_discovered=total_docs,
-        documents_processed=indexed_docs,
-        documents_pending=pending_docs,
+        documents_discovered=pdf_queue_total if pdf_queue_total > 0 else total_docs,
+        documents_processed=pdf_queue_completed if pdf_queue_total > 0 else indexed_docs,
+        documents_pending=pdf_queue_pending if pdf_queue_total > 0 else pending_docs,
         documents_failed=failed_docs,
         ocr_documents_count=ocr_docs,
         total_records_indexed=total_records,

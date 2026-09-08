@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://custody-generations-watching-costs.trycloudflare.com/api/:path*"
+      "destination": "https://karnataka-electoral-notice-checker.onrender.com/api/:path*"
     }
   ]
 }
