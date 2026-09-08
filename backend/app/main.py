@@ -44,6 +44,7 @@ DB_DRIVE_ID = "1W1UszGKi1W64Er1g1wxY087FfuQ9PjlP"
 
 def ensure_database_file():
     import os
+    # pyrefly: ignore [missing-import]
     import gdown
     db_path = settings._db_path
     if not os.path.exists(db_path) or os.path.getsize(db_path) < 10000000:
@@ -167,21 +168,10 @@ def build_status_payload(db: Session) -> SystemStatusResponse:
     pdf_queue_completed = db.query(PdfProcessingQueue).filter(PdfProcessingQueue.status == "COMPLETED").count()
     pdf_queue_failed = db.query(PdfProcessingQueue).filter(PdfProcessingQueue.status == "FAILED").count()
 
-    active_crawl = db.query(CrawlLog).filter(CrawlLog.status == "RUNNING").first()
     indexing_in_progress = bool(
-        pending_docs > 0
-        or crawl_queue_pending > 0
-        or pdf_queue_pending > 0
-        or pdf_queue_processing > 0
-        or active_crawl is not None
+        pdf_queue_pending > 0 or pdf_queue_processing > 0 or crawl_queue_pending > 0
     )
-
-    if pdf_queue_pending > 0 or pdf_queue_processing > 0:
-        indexing_in_progress = True
-
-    indexing_complete = bool(
-        pdf_queue_pending == 0 and pdf_queue_processing == 0 and crawl_queue_pending == 0 and not indexing_in_progress
-    )
+    indexing_complete = not indexing_in_progress
 
 
     subdistrict_scope = None if not discovery_district or discovery_district.value == "ALL" else discovery_district.value
