@@ -146,7 +146,6 @@ def process_pdf(self, pdf_queue_id: int) -> dict:
             ).first()
             if existing_doc:
                 logger.info(f"Duplicate PDF detected: matches document {existing_doc.id}")
-                document.document_hash = pdf_hash
                 document.processing_status = "DUPLICATE"
                 document.indexed_at = datetime.utcnow()
                 pdf_queue.status = "COMPLETED"
