@@ -1,16 +1,8 @@
 {
-  "headers": [
-    {
-      "source": "/api/:path*",
-      "headers": [
-        { "key": "ngrok-skip-browser-warning", "value": "true" }
-      ]
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://whenever-overhear-reconfirm.ngrok-free.dev/api/:path*"
+      "destination": "https://custody-generations-watching-costs.trycloudflare.com/api/:path*"
     }
   ]
 }
