@@ -169,7 +169,7 @@ def build_status_payload(db: Session) -> SystemStatusResponse:
     pdf_queue_failed = db.query(PdfProcessingQueue).filter(PdfProcessingQueue.status == "FAILED").count()
 
     indexing_in_progress = bool(
-        pdf_queue_pending > 0 or pdf_queue_processing > 0 or crawl_queue_pending > 0
+        pdf_queue_pending > 0 or crawl_queue_pending > 0
     )
     indexing_complete = not indexing_in_progress
 
